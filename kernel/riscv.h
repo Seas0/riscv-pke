@@ -117,6 +117,13 @@ static inline int supports_extension(char ext) {
     __tmp;                                                            \
   })
 
+#define clear_csr(reg, bit)                                             \
+  ({                                                                  \
+    unsigned long __tmp;                                              \
+    asm volatile("csrrc %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); \
+    __tmp;                                                            \
+  })
+
 // enable device interrupts
 static inline void intr_on(void) { write_csr(sstatus, read_csr(sstatus) | SSTATUS_SIE); }
 
