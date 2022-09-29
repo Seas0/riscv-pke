@@ -175,6 +175,7 @@ int do_fork( process* parent)
   for( int i=0; i<parent->total_mapped_region; i++ ){
     // browse parent's vm space, and copy its trapframe and data segments,
     // map its code segment.
+    pte_t *parent_pte;
     switch( parent->mapped_info[i].seg_type ){
       case CONTEXT_SEGMENT:
         *child->trapframe = *parent->trapframe;
@@ -193,8 +194,14 @@ int do_fork( process* parent)
         // address region of child to the physical pages that actually store the code
         // segment of parent process.
         // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
-        panic( "You need to implement the code segment mapping of child in lab3_1.\n" );
+        // panic( "You need to implement the code segment mapping of child in lab3_1.\n" );
 
+        parent_pte = page_walk(parent->pagetable, parent->mapped_info[i].va, 0);
+        user_vm_map(child->pagetable,
+                    parent->mapped_info[i].va,
+                    PGSIZE,
+                    PTE2PA(*parent_pte),
+                    PTE_FLAGS(*parent_pte));
         // after mapping, register the vm region (do not delete codes below!)
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
         child->mapped_info[child->total_mapped_region].npages =
