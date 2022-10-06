@@ -80,8 +80,8 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
                     prot_to_type(PROT_READ | PROT_WRITE, 1));
       else
       {
-        sprint("SEGV at %llx", stval);
-        panic("");
+        // sprint("SEGV at %llx", stval);
+        panic("this address is not available!");
       }
       break;
     default:
