@@ -13,6 +13,11 @@ typedef struct elf_info_t {
   process *p;
 } elf_info;
 
+size_t elf_sym_count;
+elf_sym elf_sym_table[SYM_TABLE_MAX_SIZE];
+char elf_str_table[STR_TABLE_MAX_SIZE];
+char elf_shstr_table[STR_TABLE_MAX_SIZE];
+
 //
 // the implementation of allocater. allocates memory space for later segment loading
 //
@@ -75,6 +80,83 @@ elf_status elf_load(elf_ctx *ctx) {
   return EL_OK;
 }
 
+inline static elf_status elf_load_sect(elf_ctx *restrict ctx,
+                                       const elf_sect_header *const restrict sh,
+                                       const void *restrict dst)
+{
+  if (elf_fpread(ctx, (void *)dst, sh->sh_size, sh->sh_offset) != sh->sh_size)
+    return EL_EIO;
+  return EL_OK;
+}
+
+//
+// load the elf symbol table from section
+//
+elf_status elf_load_sym(elf_ctx *restrict ctx)
+{
+  int i;
+  elf_sect_header sh;
+  for (i = 0; i < ctx->ehdr.shnum; ++i)
+  {
+    if (elf_fpread(ctx, (void *)&sh, sizeof(sh), ctx->ehdr.shoff + i * sizeof(sh)) != sizeof(sh))
+      return EL_EIO;
+    if (i == ctx->ehdr.shstrndx)
+    {
+      elf_load_sect(ctx, &sh, (void *)&elf_shstr_table);
+      continue;
+    }
+    switch (sh.sh_type)
+    {
+    case SHT_SYMTAB:
+      elf_sym_count = sh.sh_size / sizeof(elf_sym);
+      if (elf_load_sect(ctx, &sh, (void *)&elf_sym_table) != EL_OK)
+        return EL_EIO;
+      break;
+    case SHT_STRTAB:
+      if (elf_load_sect(ctx, &sh, (void *)&elf_str_table) != EL_OK)
+        return EL_EIO;
+      break;
+    default:
+      break;
+    }
+  }
+  return EL_OK;
+}
+
+//
+// get the function index by return address
+//
+int32 elf_get_ndx(uint64 *ra)
+{
+  int32 i;
+  for (i = 0; i < elf_sym_count; ++i)
+  {
+    if (ELF64_ST_TYPE(elf_sym_table[i].st_info) == STT_FUNC &&
+        (uint64)ra >= elf_sym_table[i].st_value &&
+        (uint64)ra < elf_sym_table[i].st_value + elf_sym_table[i].st_size)
+      return i;
+  }
+  return -1;
+}
+
+//
+// get the function name by return address
+//
+const char *elf_get_symname(uint64 *ra)
+{
+  int idx = elf_get_ndx(ra);
+  // sprint("SYM[%d] %s: %d 0x%lx 0x%lx\n",
+  //        idx,
+  //        elf_shstr_table + elf_sym_table[idx].st_name,
+  //        elf_sym_table[idx].st_info,
+  //        elf_sym_table[idx].st_value,
+  //        elf_sym_table[idx].st_size);
+
+  if (idx < 0)
+    return NULL;
+  return elf_str_table + elf_sym_table[idx].st_name;
+}
+
 typedef union {
   uint64 buf[MAX_CMDLINE_ARGS];
   char *argv[MAX_CMDLINE_ARGS];
@@ -129,6 +211,10 @@ void load_bincode_from_host_elf(process *p) {
 
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
+
+  // load symbol
+  if(elf_load_sym(&elfloader) != EL_OK)
+    panic("Fail on loading elf symbol.\n");
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
