@@ -5,9 +5,10 @@
 # if you have an output path, your environment satisfy our requirement.
 
 # ---------------------	macros --------------------------
-CROSS_PREFIX 	:= riscv64-unknown-elf-
-CC 				:= $(CROSS_PREFIX)gcc
-AR 				:= $(CROSS_PREFIX)ar
+# CROSS_PREFIX 	:= riscv64-unknown-elf-
+CROSS_PREFIX 	:= riscv64-elf-
+CC 		:= $(CROSS_PREFIX)gcc
+AR 		:= $(CROSS_PREFIX)ar
 RANLIB        	:= $(CROSS_PREFIX)ranlib
 
 SRC_DIR        	:= .
@@ -20,7 +21,7 @@ ifneq (,)
   mabi := -mabi=$(if $(is_32bit),ilp32,lp64)
 endif
 
-CFLAGS        := -Wall -Werror -gdwarf-3 -fno-builtin -nostdlib -D__NO_INLINE__ -mcmodel=medany -g -Og -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -fno-PIE $(march)
+CFLAGS        := -Wall -Werror -gdwarf-3 -fno-builtin -nostdlib -D__NO_INLINE__ -mcmodel=medany -g -Og -std=gnu99 -Wno-unused -Wno-attributes -fno-delete-null-pointer-checks -fno-PIE $(march) -fno-omit-frame-pointer
 COMPILE       	:= $(CC) -MMD -MP $(CFLAGS) $(SPROJS_INCLUDE)
 
 #---------------------	utils -----------------------
@@ -82,30 +83,30 @@ $(OBJ_DIR):
 
 $(OBJ_DIR)/%.o : %.c
 	@echo "compiling" $<
-	@$(COMPILE) -c $< -o $@
+	$(COMPILE) -c $< -o $@
 
 $(OBJ_DIR)/%.o : %.S
 	@echo "compiling" $<
-	@$(COMPILE) -c $< -o $@
+	$(COMPILE) -c $< -o $@
 
 $(UTIL_LIB): $(OBJ_DIR) $(UTIL_OBJS)
 	@echo "linking " $@	...	
-	@$(AR) -rcs $@ $(UTIL_OBJS) 
+	$(AR) -rcs $@ $(UTIL_OBJS) 
 	@echo "Util lib has been build into" \"$@\"
 	
 $(SPIKE_INF_LIB): $(OBJ_DIR) $(UTIL_OBJS) $(SPIKE_INF_OBJS)
 	@echo "linking " $@	...	
-	@$(AR) -rcs $@ $(SPIKE_INF_OBJS) $(UTIL_OBJS)
+	$(AR) -rcs $@ $(SPIKE_INF_OBJS) $(UTIL_OBJS)
 	@echo "Spike lib has been build into" \"$@\"
 
 $(KERNEL_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(SPIKE_INF_LIB) $(KERNEL_OBJS) $(KERNEL_LDS)
 	@echo "linking" $@ ...
-	@$(COMPILE) $(KERNEL_OBJS) $(UTIL_LIB) $(SPIKE_INF_LIB) -o $@ -T $(KERNEL_LDS)
+	$(COMPILE) $(KERNEL_OBJS) $(UTIL_LIB) $(SPIKE_INF_LIB) -o $@ -T $(KERNEL_LDS)
 	@echo "PKE core has been built into" \"$@\"
 
 $(USER_TARGET): $(OBJ_DIR) $(UTIL_LIB) $(USER_OBJS) $(USER_LDS)
 	@echo "linking" $@	...	
-	@$(COMPILE) $(USER_OBJS) $(UTIL_LIB) -o $@ -T $(USER_LDS)
+	$(COMPILE) $(USER_OBJS) $(UTIL_LIB) -o $@ -T $(USER_LDS)
 	@echo "User app has been built into" \"$@\"
 
 -include $(wildcard $(OBJ_DIR)/*/*.d)
@@ -126,7 +127,7 @@ gdb:$(KERNEL_TARGET) $(USER_TARGET)
 	@sleep 1
 	openocd -f ./.spike.cfg &
 	@sleep 1
-	riscv64-unknown-elf-gdb -command=./.gdbinit
+	# gdb -ex 'tar ext localhost:3333' obj/riscv-pke
 
 # clean gdb. need openocd!
 gdb_clean:
