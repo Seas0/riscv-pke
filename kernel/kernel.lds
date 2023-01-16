@@ -18,6 +18,7 @@ SECTIONS
   /* text: Program code section */
   .text : 
   {
+    obj/kernel/machine/mentry.o (.text)
     *(.text)
     *(.text.*)
     *(.gnu.linkonce.t.*)
