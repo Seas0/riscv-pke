@@ -578,9 +578,9 @@ int rfs_disk_stat(struct vinode *vinode, struct istat *istat) {
 }
 
 //
-// create a hard link under a direntry "parent" for an existing file of "link_node"
+// create a hard link under a direntry "parent" for an existing file of "link_vinode"
 //
-int rfs_link(struct vinode *parent, struct dentry *sub_dentry, struct vinode *link_node) {
+int rfs_link(struct vinode *parent, struct dentry *sub_dentry, struct vinode *link_vinode) {
   // TODO (lab4_3): we now need to establish a hard link to an existing file whose vfs
   // inode is "link_node". To do that, we need first to know the name of the new (link)
   // file, and then, we need to increase the link count of the existing file. Lastly, 
@@ -595,7 +595,34 @@ int rfs_link(struct vinode *parent, struct dentry *sub_dentry, struct vinode *li
   //    rfs_add_direntry here.
   // 3) persistent the changes to disk. you can use rfs_write_back_vinode here.
   //
-  panic("You need to implement the code for creating a hard link in lab4_3.\n" );
+  // panic("You need to implement the code for creating a hard link in lab4_3.\n" );
+  struct rfs_device *rdev = rfs_device_list[parent->sb->s_dev->dev_id];
+
+  // ** throw error if the new path already exists
+  if (rfs_lookup(parent, sub_dentry) != NULL) {
+    sprint("rfs_link: file with same name already exists");
+    return -1;
+  }
+
+  // ** append new link file to dentry table
+  if(rfs_add_direntry(parent, sub_dentry->name, link_vinode->inum) != 0) {
+    sprint("rfs_link: rfs_add_direntry failed");
+    return -1;
+  }
+
+  // ** write the parent dir inode back to disk
+  if (rfs_write_back_vinode(parent) != 0) {
+    sprint("rfs_link: rfs_write_back_vinode failed");
+    return -1;
+  }
+
+  // ** increase vinode nlinks by 1
+  link_vinode->nlinks++;
+
+  // ** write the link inode back to disk
+  rfs_write_back_vinode(link_vinode);
+
+  return 0;
 }
 
 //
