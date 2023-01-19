@@ -150,7 +150,7 @@ typedef struct __attribute__((packed)) {
 
 /* Symbol table entry.  */
 #define SYM_TABLE_MAX_SIZE 64
-#define STR_TABLE_MAX_SIZE 1024
+#define STR_TABLE_MAX_SIZE 16384
 typedef struct elf_sym_t{
   uint32	st_name;		/* Symbol name (string tbl index) */
   unsigned char	st_info;		/* Symbol type and binding */
@@ -213,6 +213,9 @@ typedef struct elf_ctx_t {
 
   size_t elf_sym_count;
   elf_sym elf_sym_table[SYM_TABLE_MAX_SIZE];
+
+  size_t elf_debug_line_size;
+  char elf_debug_line[STR_TABLE_MAX_SIZE];
 } elf_ctx;
 
 extern elf_ctx elfloader;

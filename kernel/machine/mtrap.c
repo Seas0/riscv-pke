@@ -1,6 +1,60 @@
 #include "kernel/riscv.h"
 #include "kernel/process.h"
 #include "spike_interface/spike_utils.h"
+#include "util/string.h"
+
+static void print_error_line()
+{
+  ssize_t i = 0;
+  uint64 pc = read_csr(mepc),
+         line = 0,
+         path_idx = 0,
+         file_idx = 0;
+  const char *path = NULL, *file = NULL;
+  static char rel_path[512];
+
+  // find the meta data by iterating over all possible addr
+  for (i = 0; i < current->line_ind; i++)
+  {
+    if (pc == current->line[i].addr)
+    {
+      line = current->line[i].line;
+      file_idx = current->line[i].file;
+      path_idx = current->file[file_idx].dir;
+      file = current->file[file_idx].file;
+      path = current->dir[path_idx];
+      break;
+    }
+  }
+
+  // get full relative path
+  ssize_t path_len = strlen(path),
+          file_len = strlen(file);
+  strcpy(rel_path, path);
+  rel_path[path_len] = '/';
+  strcpy(rel_path + path_len + 1, file);
+  
+  sprint("Runtime error at %s:%ld\n", rel_path, line);
+
+  // open src file to read line
+  spike_file_t *f = spike_file_open(rel_path, O_RDONLY, 0);
+  char c = 0;
+  i = 1;
+  while (spike_file_read(f, &c, 1) != 0)
+  {
+    if (c == '\n')
+      i++;
+    if (i == line)
+      break;
+  }
+  while (spike_file_read(f, &c, 1) != 0)
+  {
+    sprint("%c", c);
+    if (c == '\n')
+      break;
+  }
+  spike_file_close(f);
+}
 
 static void handle_instruction_access_fault() { panic("Instruction access fault!"); }
 
@@ -28,6 +82,7 @@ static void handle_timer() {
 // handle_mtrap calls a handling function according to the type of a machine mode interrupt (trap).
 //
 void handle_mtrap() {
+  print_error_line();
   uint64 mcause = read_csr(mcause);
   switch (mcause) {
     case CAUSE_MTIMER:

@@ -261,6 +261,14 @@ elf_status elf_load_sym(elf_ctx *restrict ctx)
       if (elf_load_sect(ctx, &sh, (void *)&(ctx->elf_str_table)) != EL_OK)
         return EL_EIO;
       break;
+    case SHT_PROGBITS:
+      if(!strcmp(ctx->elf_shstr_table + sh.sh_name, ".debug_line"))
+      {
+        if (elf_load_sect(ctx, &sh, (void *)&(ctx->elf_debug_line)) != EL_OK)
+          return EL_EIO;
+        ctx->elf_debug_line_size = sh.sh_size;
+      }
+      break;
     default:
       break;
     }
@@ -360,6 +368,9 @@ void load_bincode_from_host_elf(process *p) {
   // load symbol
   if(elf_load_sym(&elfloader) != EL_OK)
     panic("Fail on loading elf symbol.\n");
+
+  // resolve address to file and line
+  make_addr_line(&elfloader, elfloader.elf_debug_line, elfloader.elf_debug_line_size);
 
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
