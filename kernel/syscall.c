@@ -45,22 +45,27 @@ ssize_t sys_user_backtrace(uint64 depth)
   uint64 *ra = (uint64 *)(current->trapframe->regs.ra);
   uint64 *fp = (uint64 *)(current->trapframe->regs.s0) + 2;
   uint64 *sp = (uint64 *)(current->trapframe->regs.sp);
+  const char *sym_name;
   // dereference the stack frame pointer of print_backtrace
   sp = (uint64 *)fp;
   ra = (uint64 *)*(fp - 1);
   fp = (uint64 *)*(fp - 2);
+  sym_name = elf_get_sym_name(&elfloader, ra);
   // loop through depth
   for (cur_depth = 0;
        cur_depth < depth;
        cur_depth++,
       (sp = (uint64 *)fp),
       (ra = (uint64 *)*(fp - 1)),
-      (fp = (uint64 *)*(fp - 2)))
+      (fp = (uint64 *)*(fp - 2)),
+      (sym_name = elf_get_sym_name(&elfloader, ra)))
   {
     // sprint("[%d]fp: 0x%lx, ra: 0x%lx\n", cur_depth,
     //        fp,
     //        ra);
-    sprint("%s\n", elf_get_symname(ra));
+    sprint("%s\n", sym_name);
+    if(!strcmp(sym_name, "main") && cur_depth < depth)
+      return EL_ERR;
     // for(uint64 * i = fp + 32; i >= sp - 32; i--)
     // {
     //   sprint("%s0x%lx: 0x%lx\n",i==fp?"fp -> ":(i==sp?"sp -> ":"      "), i, *i);

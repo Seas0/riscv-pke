@@ -207,18 +207,21 @@ typedef enum elf_status_t {
 typedef struct elf_ctx_t {
   void *info;
   elf_header ehdr;
+
+  char elf_str_table[STR_TABLE_MAX_SIZE];
+  char elf_shstr_table[STR_TABLE_MAX_SIZE];
+
+  size_t elf_sym_count;
+  elf_sym elf_sym_table[SYM_TABLE_MAX_SIZE];
 } elf_ctx;
 
-extern size_t elf_sym_count;
-extern elf_sym elf_sym_table[SYM_TABLE_MAX_SIZE];
-extern char elf_str_table[STR_TABLE_MAX_SIZE];
-extern char elf_shstr_table[STR_TABLE_MAX_SIZE];
+extern elf_ctx elfloader;
 
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 elf_status elf_load_sym(elf_ctx *ctx);
-int32 elf_get_ndx(uint64 * ra);
-const char *elf_get_symname(uint64 *ra);
+int32 elf_get_sym_ndx(elf_ctx *ctx, uint64 * ra);
+const char *elf_get_sym_name(elf_ctx *ctx, uint64 *ra);
 
 void load_bincode_from_host_elf(process *p);
 
