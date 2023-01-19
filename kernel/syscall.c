@@ -50,7 +50,7 @@ ssize_t sys_user_backtrace(uint64 depth)
   sp = (uint64 *)fp;
   ra = (uint64 *)*(fp - 1);
   fp = (uint64 *)*(fp - 2);
-  sym_name = elf_get_symname(ra);
+  sym_name = elf_get_sym_name(&elfloader, ra);
   // loop through depth
   for (cur_depth = 0;
        cur_depth < depth;
@@ -58,7 +58,7 @@ ssize_t sys_user_backtrace(uint64 depth)
       (sp = (uint64 *)fp),
       (ra = (uint64 *)*(fp - 1)),
       (fp = (uint64 *)*(fp - 2)),
-      (sym_name = elf_get_symname(ra)))
+      (sym_name = elf_get_sym_name(&elfloader, ra)))
   {
     // sprint("[%d]fp: 0x%lx, ra: 0x%lx\n", cur_depth,
     //        fp,
