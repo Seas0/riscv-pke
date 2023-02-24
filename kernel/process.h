@@ -80,23 +80,22 @@ void switch_to(process*);
 void init_proc_pool();
 // allocate an empty process, init its vm space. returns its pid
 process* alloc_process();
-// reclaim a process, destruct its vm space and free physical pages.
+// set process state to zombie.
 int free_process( process* proc );
+// actually delete process
+int delete_process( process* proc );
 // fork a child from parent
 int do_fork(process* parent);
 // initialize process pool (the procs[] array)
 void init_proc_pool();
-// allocate an empty process, init its vm space. returns its pid
-process* alloc_process();
-// reclaim a process, destruct its vm space and free physical pages.
-int free_process( process* proc );
-// fork a child from parent
-int do_fork(process* parent);
 
 // current running process
 extern process* current;
 
 // address of the first free page in our simple heap. added @lab2_2
 extern uint64 g_ufree_page;
+
+// process pool. added @lab3_1
+extern process procs[NPROC];
 
 #endif
