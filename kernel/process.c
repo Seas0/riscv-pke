@@ -147,6 +147,35 @@ process* alloc_process() {
   return &procs[i];
 }
 
+// WARNING: This function should not be called while the current process is in context,
+// as it deallocates the user kernel memory, breaking kernel return & call
+int delete_process( process* proc )
+{
+  int pid = proc->pid;
+  assert( proc != NULL );
+  assert( proc != current );
+  // deallocates the user stack && data
+  for( int i=0; i<proc->total_mapped_region; i++ ){
+    if( proc->mapped_info[i].seg_type == DATA_SEGMENT ||
+        proc->mapped_info[i].seg_type == STACK_SEGMENT) {
+      free_page((void *)(proc->mapped_info[i].va));
+    }
+  }
+  // deallocates the user kernel stack
+  free_page((void *)(proc->kstack - PGSIZE));
+  // deallocates the pagetable
+  free_page((void *)proc->pagetable);
+  // deallocates the trapframe
+  free_page((void *)proc->trapframe);
+  // deallocates the page recording memory regions (segments)
+  free_page((void *)(proc->mapped_info->va));
+  // reinitializes the process slot
+  memset( proc, 0, sizeof(process) );
+  proc->pid = pid;
+  proc->status = FREE;
+  return 0;
+}
+
 //
 // reclaim a process. added @lab3_1
 //
@@ -161,7 +190,7 @@ int free_process( process* proc ) {
 }
 
 //
-// implements fork syscal in kernel. added @lab3_1
+// implements fork syscall in kernel. added @lab3_1
 // basic idea here is to first allocate an empty process (child), then duplicate the
 // context and data segments of parent process to the child, and lastly, map other
 // segments (code, system) of the parent to child. the stack segment remains unchanged
@@ -177,15 +206,29 @@ int do_fork( process* parent)
     // map its code segment.
     pte_t *parent_pte;
     switch( parent->mapped_info[i].seg_type ){
+      case SYSTEM_SEGMENT:
+        // Implemented in alloc_process().
+        break;
       case CONTEXT_SEGMENT:
         *child->trapframe = *parent->trapframe;
         break;
+      case DATA_SEGMENT:
+        parent_pte = page_walk(parent->pagetable, parent->mapped_info[i].va, 0);
+        user_vm_map(child->pagetable,
+                    parent->mapped_info[i].va,
+                    PGSIZE,
+                    (uint64)alloc_page(),
+                    PTE_FLAGS(*parent_pte));
+        child->mapped_info[i].va = parent->mapped_info[i].va;
+        child->mapped_info[i].npages = parent->mapped_info[i].npages;
+        child->mapped_info[i].seg_type = parent->mapped_info[i].seg_type;
+        child->total_mapped_region++;
       case STACK_SEGMENT:
-        memcpy( (void*)lookup_pa(child->pagetable, child->mapped_info[0].va),
+        memcpy( (void*)lookup_pa(child->pagetable, child->mapped_info[i].va),
           (void*)lookup_pa(parent->pagetable, parent->mapped_info[i].va), PGSIZE );
         break;
       case CODE_SEGMENT:
-        // TODO (lab3_1): implment the mapping of child code segment to parent's
+        // TODO (lab3_1): implement the mapping of child code segment to parent's
         // code segment.
         // hint: the virtual address mapping of code segment is tracked in mapped_info
         // page of parent's process structure. use the information in mapped_info to
@@ -209,6 +252,9 @@ int do_fork( process* parent)
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
         child->total_mapped_region++;
         break;
+      default: 
+        sprint("Unimplemented page type %d in fork!", parent->mapped_info[i].seg_type);
+        panic("");
     }
   }
 
