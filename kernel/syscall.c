@@ -35,6 +35,17 @@ ssize_t sys_user_exit(uint64 code) {
   sprint("User exit with code:%d.\n", code);
   // reclaim the current process, and reschedule. added @lab3_1
   free_process( current );
+  // if parent exist && is blocked by the current process, then reactivate it,
+  // and add it to the ready list.
+  if( current->parent &&
+      current->parent->status == BLOCKED &&
+      ( current->parent->trapframe->regs.a0 == current->pid ||
+        current->parent->trapframe->regs.a0 == 0) )
+  {
+    current->parent->trapframe->regs.a0 = current->pid;
+    current->parent->status = READY;
+    insert_to_ready_queue(current->parent);
+  }
   schedule();
   return 0;
 }
@@ -84,6 +95,33 @@ ssize_t sys_user_yield() {
 }
 
 //
+// kernel entry point of wait. added @lab3_c1
+// hint: just reference to the v6 unix kernel src
+// extra hint: search for zombie child process, set as blocked if none
+ssize_t sys_user_wait(int pid) {
+  // panic("TODO: wait");
+  process * p;
+  int child_pid = 0;
+  for (p = procs;p < procs + NPROC; ++p) {
+    if (p->parent == current && (pid == -1 || p->pid == pid)) {
+      child_pid = p->pid;
+      if(p->status == ZOMBIE) // child process already finished, delete it
+      {
+        delete_process(p);
+        return p->pid;
+      }
+    }
+  }
+  if(child_pid) // valid pid, but shall wait
+  {
+    current->trapframe->regs.a0 = (pid == -1) ? 0 : child_pid;
+    current->status = BLOCKED;
+    schedule();
+  }
+  return -1;
+}
+
+//
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
@@ -102,6 +140,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_wait:
+      return sys_user_wait(a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }
