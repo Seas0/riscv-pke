@@ -21,6 +21,10 @@ typedef struct trapframe_t {
 // riscv-pke kernel supports at most 32 processes
 #define NPROC 32
 
+// support at most 32 semaphore
+// added @ lab3_challenge2
+#define NSEM 32
+
 // possible status of a process
 enum proc_status {
   FREE,            // unused state
@@ -73,6 +77,20 @@ typedef struct process_t {
   int tick_count;
 }process;
 
+// semaphore structure
+// added @ lab3_challenge2
+// a semaphore is a tuple (i, q), where i is
+// the value of itself, representing free resources
+// when equal or higher than 0, and the length of
+// q when equal or lower than 0, while q is the waiting
+// queue of blocked processes
+typedef struct semaphore_s
+{
+  int valid;
+  int64 i;
+  process *wait_queue_head;
+} semaphore_t;
+
 // switch to run user app
 void switch_to(process*);
 
@@ -88,6 +106,15 @@ int delete_process( process* proc );
 int do_fork(process* parent);
 // initialize process pool (the procs[] array)
 void init_proc_pool();
+
+// semaphore operations
+// added @ lab3_challenge2
+// get new semaphore
+size_t do_sem_new(uint64 init_value);
+// semaphore P operation
+void do_sem_p(size_t id);
+// semaphore V operation
+void do_sem_v(size_t id);
 
 // current running process
 extern process* current;

@@ -84,6 +84,35 @@ ssize_t sys_user_yield() {
 }
 
 //
+// kernel entry point of sem_new. added @lab3_challenge2
+//
+uint64 sys_user_sem_new(uint64 init_value)
+{
+  // sprint("User call sem_new");
+  return do_sem_new(init_value);
+}
+
+//
+// kernel entry point of sem_p. added @lab3_challenge2
+//
+int64 sys_user_sem_p(uint64 id)
+{
+  // sprint("User call sem_p");
+  do_sem_p(id);
+  return 0;
+}
+
+//
+// kernel entry point of sem_v. added @lab3_challenge2
+//
+int64 sys_user_sem_v(uint64 id)
+{
+  // sprint("User call sem_v");
+  do_sem_v(id);
+  return 0;
+}
+
+//
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
@@ -102,6 +131,16 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_sem_new:
+      return sys_user_sem_new(a1);
+      // panic("sys_user_sem_new not implemented");
+    case SYS_user_sem_P:
+      return sys_user_sem_p(a1);
+      // panic("sys_user_sem_P not implemented");
+    case SYS_user_sem_V:
+      return sys_user_sem_v(a1);
+      // panic("sys_user_sem_V not implemented");
+
     default:
       panic("Unknown syscall %ld \n", a0);
   }

@@ -35,6 +35,10 @@ process* current = NULL;
 // points to the first free page in our simple heap. added @lab2_2
 uint64 g_ufree_page = USER_FREE_ADDRESS_START;
 
+// semaphore list
+// added @ lab3_challenge2
+semaphore_t sems[NSEM];
+
 //
 // switch to a user-mode process
 //
@@ -264,4 +268,68 @@ int do_fork( process* parent)
   insert_to_ready_queue( child );
 
   return child->pid;
+}
+
+// semaphore operations
+// added @ lab3_challenge2
+// implement sem_new syscall
+size_t do_sem_new(uint64 init_value)
+{
+  // basic sanity check
+  assert(init_value <= INT64_MAX);
+
+  for (size_t i = 0; i < NSEM; i++)
+  {
+    if (!sems[i].valid)
+    {
+        // sprint("new sem @ %lld, i=%lld\n", i, init_value);
+        sems[i].valid = 1;
+        sems[i].i = (int64)init_value;
+        sems[i].wait_queue_head = NULL;
+        return i;
+    }
+  }
+  // there is any error
+  // can't find any free semaphore
+  return -1;
+}
+
+// implement sem_p syscall
+void do_sem_p(size_t id)
+{
+  // sprint("do P @ %lld\n", id);
+
+  // basic sanity check
+  assert(sems[id].valid);
+  
+  if(--sems[id].i < 0)
+  {
+    // blocking current process
+    // and insert into sems.wait_queue
+    current->status = BLOCKED;
+    current->queue_next = sems[id].wait_queue_head;
+    sems[id].wait_queue_head = current;
+    schedule();
+  }
+}
+
+// implement sem_v syscall
+void do_sem_v(size_t id)
+{
+  // sprint("do V @ %lld\n", id);
+
+  // basic sanity check
+  assert(sems[id].valid);
+
+  if(++sems[id].i <= 0)
+  {
+    if (sems[id].wait_queue_head)
+    {
+        // wake a blocked process
+        process *waking_process = sems[id].wait_queue_head;
+        sems[id].wait_queue_head = sems[id].wait_queue_head->queue_next;
+
+        insert_to_ready_queue(waking_process);
+    }
+  }
 }
